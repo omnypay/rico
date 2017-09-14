@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/system)
+(require racket/trace)
 
 (define (reassoc alist k v)
   (cons (cons k v)
@@ -86,14 +87,15 @@
 
 (define semver-regex (pregexp "(\\d+)\\.(\\d+)\\.(\\d+)"))
 
+(define (index-as-num lst i)
+  (string->number (list-ref lst i)))
+
 (define (parse-semver s)
-  (let* ((parsed (regexp-match semver-regex s))
-	 (index-as-num (lambda (n)
-			 (string->number (list-ref parsed n)))))
+  (let* ((parsed (regexp-match semver-regex s)))
     (and parsed
-         `((:major . ,(index-as-num 1))
-           (:minor . ,(index-as-num 2))
-           (:patch . ,(index-as-num 3))))))
+         `((:major . ,(index-as-num parsed 1))
+           (:minor . ,(index-as-num parsed 2))
+           (:patch . ,(index-as-num parsed 3))))))
 
 (define (initial-new-tag latest-tag)
   (let* ((earlier-commit (or latest-tag (git-empty-tree-hash)))
@@ -104,11 +106,22 @@
         (reassoc parsed-ver ':patch (assoc-cdr ':patch parsed-ver))
         '((:major 0) (:minor 0) (:patch 0)))))
 
-;; (initial-new-tag (latest-semver-tag))
+(define (last-release)
+  (let* ((result (process-output
+		  (git-cmd "describe" "--tags" "--match" "RELEASE-\\*")))
+	 (parsed (and (not (void result))
+	  	      (regexp-match "RELEASE-(\\d+)\\.(\\d+).*" result))))
+    (if parsed
+	`((:release-major . ,(index-as-num parsed 1))
+	  (:release-minor . ,(index-as-num parsed 2)))
+	`((:release-major . 0) (:release-minor . 0)))))
 
 #|
+(latest-semver-tag)
+(trace call-with-current-directory)
 (call-with-current-directory
  "/home/kasim/work/omnyway/pantheon"
  (lambda ()
-   (initial-new-tag (latest-semver-tag))))
+   ;;(initial-new-tag (latest-semver-tag))
+   (last-release)))
 |#
