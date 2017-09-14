@@ -109,7 +109,7 @@
 (define (last-release)
   (let* ((result (process-output
 		  (git-cmd "describe" "--tags" "--match" "RELEASE-\\*")))
-	 (parsed (and (not (void result))
+	 (parsed (and (not (void? result))
 	  	      (regexp-match "RELEASE-(\\d+)\\.(\\d+).*" result))))
     (if parsed
 	`((:release-major . ,(index-as-num parsed 1))
