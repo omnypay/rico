@@ -90,20 +90,19 @@
 (define (index-as-num lst i)
   (string->number (list-ref lst i)))
 
-(define (parse-semver s)
+(define (parse-semver s i)
   (let* ((parsed (regexp-match semver-regex s)))
     (and parsed
          `((:major . ,(index-as-num parsed 1))
            (:minor . ,(index-as-num parsed 2))
-           (:patch . ,(index-as-num parsed 3))))))
+           (:patch . ,(+ i (index-as-num parsed 3)))))))
 
 (define (initial-new-tag latest-tag)
   (let* ((earlier-commit (or latest-tag (git-empty-tree-hash)))
          (distance (git-distance earlier-commit))
          (increment (if (positive? distance) 1 0))
-         (parsed-ver (parse-semver earlier-commit)))
-    (if parsed-ver
-        (reassoc parsed-ver ':patch (assoc-cdr ':patch parsed-ver))
+         (parsed-ver (parse-semver earlier-commit increment)))
+    (or parsed-ver
         '((:major 0) (:minor 0) (:patch 0)))))
 
 (define (last-release)
@@ -116,12 +115,16 @@
 	  (:release-minor . ,(index-as-num parsed 2)))
 	`((:release-major . 0) (:release-minor . 0)))))
 
+(define (sync-local-tags-to-remote)
+  (git-cmd "fetch" "--prune" "--tags"))
+
 #|
 (latest-semver-tag)
 (trace call-with-current-directory)
 (call-with-current-directory
  "/home/kasim/work/omnyway/pantheon"
  (lambda ()
-   ;;(initial-new-tag (latest-semver-tag))
-   (last-release)))
+   (initial-new-tag (latest-semver-tag))
+   ;;(last-release)
+))
 |#
