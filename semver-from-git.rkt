@@ -1,13 +1,6 @@
 #lang racket
 
 (require racket/system)
-(require racket/trace)
-
-(define (reassoc alist k v)
-  (cons (cons k v)
-        (remf (lambda (x) (eq? k (car x))) alist)))
-
-;; (equal? '((:foo . 3) (:bar . 2)) (reassoc '((:foo . 1) (:bar . 2)) ':foo 3))
 
 (define (assoc-cdr key alist)
   (let [(v (assoc key alist))]
@@ -157,8 +150,6 @@
     final-result))
 
 #|
-(latest-semver-tag)
-(trace call-with-current-directory)
 (call-with-current-directory
  "/home/kasim/work/omnyway/pantheon"
  (lambda ()
