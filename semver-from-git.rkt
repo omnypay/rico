@@ -138,7 +138,7 @@
    (process-output
     (git-cmd "rev-parse" "--abbrev-ref" "HEAD"))))
 
-(define (check-branch final-semver-value)
+(define (brach-semver-string final-semver-value)
   (let* ((branch (current-branch)))
     (if (not (string=? "master" branch))
 	(string-append branch "-" final-semver-value)
@@ -148,7 +148,7 @@
   (let* ((initial-tag (initial-new-tag (latest-semver-tag)))
 	 (final-semver-value (final-semver-value initial-tag (last-release)))
 	 (final-semver-string (semver-as-string final-semver-value))
-	 (final-result (check-branch final-semver-string)))
+	 (final-result (brach-semver-string final-semver-string)))
     final-result))
 
 #|
