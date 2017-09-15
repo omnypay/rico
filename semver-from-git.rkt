@@ -178,5 +178,6 @@
 	  (semver-file (safely-first args)))
      (if (stdout?)
 	 (displayln semver)
-	 (with-output-to-file (or semver-file "SEMVER") semver)))))
+	 (with-output-to-file (or semver-file "SEMVER")
+	   (lambda () (printf semver)))))))
 
