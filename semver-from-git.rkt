@@ -118,13 +118,48 @@
 (define (sync-local-tags-to-remote)
   (git-cmd "fetch" "--prune" "--tags"))
 
+(define (final-semver-value semver release)
+  (let* ((major (assoc-cdr ':major semver))
+	 (minor (assoc-cdr ':minor semver))
+	 (patch (assoc-cdr ':patch semver))
+	 (final-major (max major (assoc-cdr ':release-major release)))
+	 (final-minor (max minor (assoc-cdr ':release-minor release))))
+    (if (or (> final-major major) (> final-minor minor))
+	(string-append (number->string final-major)
+		       "."
+		       (number->string final-minor)
+		       "."
+		       "0")
+	(string-append (number->string major)
+		       "."
+		       (number->string minor)
+		       "."
+		       (number->string patch)))))
+
+(define (current-branch)
+  (process-output
+   (git-cmd "rev-parse" "--abbrev-ref" "HEAD")))
+
+(define (check-branch final-semver-value)
+  (let* ((branch (safely-first (current-branch))))
+    (if (string=? "master" branch)
+      (string-append branch "-" final-semver-value)
+      final-semver-value)))
+
+(define (new-semver)
+  (let* ((initial-tag (initial-new-tag (latest-semver-tag)))
+	 (final-semver-value (final-semver-value initial-tag (last-release)))
+	 (final-result (check-branch final-semver-value)))
+    final-result))
+
 #|
 (latest-semver-tag)
 (trace call-with-current-directory)
 (call-with-current-directory
  "/home/kasim/work/omnyway/pantheon"
  (lambda ()
-   (initial-new-tag (latest-semver-tag))
+   ;;(initial-new-tag (latest-semver-tag))
    ;;(last-release)
+   (new-semver)
 ))
 |#
