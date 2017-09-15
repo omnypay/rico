@@ -171,13 +171,11 @@
    #:once-each
    [("-s") "Sync local/remove tags" (sync? #t)]
    [("-n") "Only write to stdout. No output file" (stdout? #t)]
-   #:args (semver-file)
+   #:args args
    (and (sync?)
 	(sync-remote-tags))
-   (let* ((semver (call-with-current-directory
-		   "/home/kasim/work/omnyway/pantheon"
-		   (lambda ()
-		     (new-semver)))))
+   (let* ((semver (new-semver))
+	  (semver-file (safely-first args)))
      (if (stdout?)
 	 (displayln semver)
 	 (with-output-to-file (or semver-file "SEMVER") semver)))))
