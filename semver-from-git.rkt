@@ -2,12 +2,6 @@
 
 (require racket/system)
 
-(define (reassoc alist k v)
-  (cons (cons k v)
-        (remf (lambda (x) (eq? k (car x))) alist)))
-
-;; (equal? '((:foo . 3) (:bar . 2)) (reassoc '((:foo . 1) (:bar . 2)) ':foo 3))
-
 (define (assoc-cdr key alist)
   (let [(v (assoc key alist))]
     (when v
@@ -86,29 +80,104 @@
 
 (define semver-regex (pregexp "(\\d+)\\.(\\d+)\\.(\\d+)"))
 
-(define (parse-semver s)
-  (let* ((parsed (regexp-match semver-regex s))
-	 (index-as-num (lambda (n)
-			 (string->number (list-ref parsed n)))))
-    (and parsed
-         `((:major . ,(index-as-num 1))
-           (:minor . ,(index-as-num 2))
-           (:patch . ,(index-as-num 3))))))
+(define (nth-as-num lst i)
+  (string->number (list-ref lst i)))
+
+(define (semver-as-list major minor patch)
+  `((:major . ,major)
+    (:minor . ,minor)
+    (:patch . ,patch)))
 
 (define (initial-new-tag latest-tag)
   (let* ((earlier-commit (or latest-tag (git-empty-tree-hash)))
          (distance (git-distance earlier-commit))
          (increment (if (positive? distance) 1 0))
-         (parsed-ver (parse-semver earlier-commit)))
-    (if parsed-ver
-        (reassoc parsed-ver ':patch (assoc-cdr ':patch parsed-ver))
-        '((:major 0) (:minor 0) (:patch 0)))))
+         (parsed (regexp-match semver-regex earlier-commit)))
+    (if parsed
+	(semver-as-list (nth-as-num parsed 1)
+			(nth-as-num parsed 2)
+			(+ increment (nth-as-num parsed 3)))
+	(semver-as-list 0 0 0))))
 
-;; (initial-new-tag (latest-semver-tag))
+(define release-regex (pregexp "RELEASE-(\\d+)\\.(\\d+).*"))
+
+(define (last-release)
+  (let* ((result (process-output
+		  (git-cmd "describe" "--tags" "--match" "RELEASE-\\*")))
+	 (parsed (and (not (void? result))
+	  	      (regexp-match release-regex result))))
+    (if parsed
+	`((:release-major . ,(nth-as-num parsed 1))
+	  (:release-minor . ,(nth-as-num parsed 2)))
+	`((:release-major . 0) (:release-minor . 0)))))
+
+(define (sync-remote-tags)
+  (displayln "Syncing local/remote tags by running 'git fetch --prune --tags' ...")
+  (git-cmd "fetch" "--prune" "--tags")
+  (displayln "Synced local/remote tags."))
+
+(define (semver-as-string semver)
+  (string-append (number->string (assoc-cdr ':major semver))
+		 "."
+		 (number->string (assoc-cdr ':minor semver))
+		 "."
+		 (number->string (assoc-cdr ':patch semver))))
+
+(define (final-semver-value semver release)
+  (let* ((major (assoc-cdr ':major semver))
+	 (minor (assoc-cdr ':minor semver))
+	 (patch (assoc-cdr ':patch semver))
+	 (final-major (max major (assoc-cdr ':release-major release)))
+	 (final-minor (max minor (assoc-cdr ':release-minor release))))
+    (if (or (> final-major major) (> final-minor minor))
+	(semver-as-list final-major final-minor 0)
+	(semver-as-list major minor patch))))
+
+(define (current-branch)
+  (safely-first
+   (process-output
+    (git-cmd "rev-parse" "--abbrev-ref" "HEAD"))))
+
+(define (brach-semver-string final-semver-value)
+  (let* ((branch (current-branch)))
+    (if (not (string=? "master" branch))
+	(string-append branch "-" final-semver-value)
+	final-semver-value)))
+
+(define (new-semver)
+  (let* ((initial-tag (initial-new-tag (latest-semver-tag)))
+	 (final-semver-value (final-semver-value initial-tag (last-release)))
+	 (final-semver-string (semver-as-string final-semver-value))
+	 (final-result (brach-semver-string final-semver-string)))
+    final-result))
 
 #|
 (call-with-current-directory
  "/home/kasim/work/omnyway/pantheon"
  (lambda ()
-   (initial-new-tag (latest-semver-tag))))
+   ;;(initial-new-tag (latest-semver-tag))
+   ;;(last-release)
+   (new-semver)
+))
 |#
+
+;; command line parsing
+
+(define sync? (make-parameter #f))
+(define stdout? (make-parameter #f))
+
+(define main
+  (command-line
+   #:once-each
+   [("-s") "Sync local/remove tags" (sync? #t)]
+   [("-n") "Only write to stdout. No output file" (stdout? #t)]
+   #:args args
+   (and (sync?)
+	(sync-remote-tags))
+   (let* ((semver (new-semver))
+	  (semver-file (safely-first args)))
+     (if (stdout?)
+	 (displayln semver)
+	 (with-output-to-file (or semver-file "SEMVER")
+	   (lambda () (printf semver)))))))
+
