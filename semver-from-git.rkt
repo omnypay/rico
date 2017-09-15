@@ -87,36 +87,46 @@
 
 (define semver-regex (pregexp "(\\d+)\\.(\\d+)\\.(\\d+)"))
 
-(define (index-as-num lst i)
+(define (nth-as-num lst i)
   (string->number (list-ref lst i)))
 
-(define (parse-semver s i)
-  (let* ((parsed (regexp-match semver-regex s)))
-    (and parsed
-         `((:major . ,(index-as-num parsed 1))
-           (:minor . ,(index-as-num parsed 2))
-           (:patch . ,(+ i (index-as-num parsed 3)))))))
+(define (semver-as-list major minor patch)
+  `((:major . ,major)
+    (:minor . ,minor)
+    (:patch . ,patch)))
 
 (define (initial-new-tag latest-tag)
   (let* ((earlier-commit (or latest-tag (git-empty-tree-hash)))
          (distance (git-distance earlier-commit))
          (increment (if (positive? distance) 1 0))
-         (parsed-ver (parse-semver earlier-commit increment)))
-    (or parsed-ver
-        '((:major 0) (:minor 0) (:patch 0)))))
+         (parsed (regexp-match semver-regex earlier-commit)))
+    (if parsed
+	(semver-as-list (nth-as-num parsed 1)
+			(nth-as-num parsed 2)
+			(+ increment (nth-as-num parsed 3)))
+	(semver-as-list 0 0 0))))
+
+(define release-regex (pregexp "RELEASE-(\\d+)\\.(\\d+).*"))
 
 (define (last-release)
   (let* ((result (process-output
 		  (git-cmd "describe" "--tags" "--match" "RELEASE-\\*")))
 	 (parsed (and (not (void? result))
-	  	      (regexp-match "RELEASE-(\\d+)\\.(\\d+).*" result))))
+	  	      (regexp-match release-regex result))))
     (if parsed
-	`((:release-major . ,(index-as-num parsed 1))
-	  (:release-minor . ,(index-as-num parsed 2)))
+	`((:release-major . ,(nth-as-num parsed 1))
+	  (:release-minor . ,(nth-as-num parsed 2)))
 	`((:release-major . 0) (:release-minor . 0)))))
 
-(define (sync-local-tags-to-remote)
+(define (sync-remote-tags)
   (git-cmd "fetch" "--prune" "--tags"))
+
+(define (semver-as-string semver)
+  (string-append (number->string (assoc-cdr ':major semver))
+		 "."
+		 (number->string (assoc-cdr ':minor semver))
+		 "."
+		 (number->string (assoc-cdr ':patch semver))))
 
 (define (final-semver-value semver release)
   (let* ((major (assoc-cdr ':major semver))
@@ -125,31 +135,25 @@
 	 (final-major (max major (assoc-cdr ':release-major release)))
 	 (final-minor (max minor (assoc-cdr ':release-minor release))))
     (if (or (> final-major major) (> final-minor minor))
-	(string-append (number->string final-major)
-		       "."
-		       (number->string final-minor)
-		       "."
-		       "0")
-	(string-append (number->string major)
-		       "."
-		       (number->string minor)
-		       "."
-		       (number->string patch)))))
+	(semver-as-list final-major final-minor 0)
+	(semver-as-list major minor patch))))
 
 (define (current-branch)
-  (process-output
-   (git-cmd "rev-parse" "--abbrev-ref" "HEAD")))
+  (safely-first
+   (process-output
+    (git-cmd "rev-parse" "--abbrev-ref" "HEAD"))))
 
 (define (check-branch final-semver-value)
-  (let* ((branch (safely-first (current-branch))))
-    (if (string=? "master" branch)
-      (string-append branch "-" final-semver-value)
-      final-semver-value)))
+  (let* ((branch (current-branch)))
+    (if (not (string=? "master" branch))
+	(string-append branch "-" final-semver-value)
+	final-semver-value)))
 
 (define (new-semver)
   (let* ((initial-tag (initial-new-tag (latest-semver-tag)))
 	 (final-semver-value (final-semver-value initial-tag (last-release)))
-	 (final-result (check-branch final-semver-value)))
+	 (final-semver-string (semver-as-string final-semver-value))
+	 (final-result (check-branch final-semver-string)))
     final-result))
 
 #|
