@@ -112,7 +112,9 @@
 	`((:release-major . 0) (:release-minor . 0)))))
 
 (define (sync-remote-tags)
-  (git-cmd "fetch" "--prune" "--tags"))
+  (displayln "Syncing local/remote tags by running 'git fetch --prune --tags' ...")
+  (git-cmd "fetch" "--prune" "--tags")
+  (displayln "Synced local/remote tags."))
 
 (define (semver-as-string semver)
   (string-append (number->string (assoc-cdr ':major semver))
@@ -158,3 +160,25 @@
    (new-semver)
 ))
 |#
+
+;; command line parsing
+
+(define sync? (make-parameter #f))
+(define stdout? (make-parameter #f))
+
+(define main
+  (command-line
+   #:once-each
+   [("-s") "Sync local/remove tags" (sync? #t)]
+   [("-n") "Only write to stdout. No output file" (stdout? #t)]
+   #:args (semver-file)
+   (and (sync?)
+	(sync-remote-tags))
+   (let* ((semver (call-with-current-directory
+		   "/home/kasim/work/omnyway/pantheon"
+		   (lambda ()
+		     (new-semver)))))
+     (if (stdout?)
+	 (displayln semver)
+	 (with-output-to-file (or semver-file "SEMVER") semver)))))
+
