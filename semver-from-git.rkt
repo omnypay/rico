@@ -102,8 +102,9 @@
 (define release-regex (pregexp "RELEASE-(\\d+)\\.(\\d+).*"))
 
 (define (last-release)
-  (let* ((result (process-output
-		  (git-cmd "describe" "--tags" "--match" "RELEASE-\\*")))
+  (let* ((result (safely-first
+		  (process-output
+		   (git-cmd "describe" "--tags" "--match" "RELEASE-*"))))
 	 (parsed (and (not (void? result))
 	  	      (regexp-match release-regex result))))
     (if parsed
