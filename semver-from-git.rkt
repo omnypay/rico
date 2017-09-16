@@ -179,5 +179,6 @@
      (if (stdout?)
 	 (displayln semver)
 	 (with-output-to-file (or semver-file "SEMVER")
-	   (lambda () (printf semver)))))))
+	   (lambda () (printf semver))
+	   #:exists 'replace)))))
 
