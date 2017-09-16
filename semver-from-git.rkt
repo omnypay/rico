@@ -39,6 +39,8 @@
          (out (with-output-to-string
                 (lambda ()
                   (let ([git (find-executable-path "git")])
+		    (when (not (path-string? git))
+		      (raise 'git-command-not-found))
                     (set! exit
                       (apply system* git cmd args)))))))
     `((:exit . ,exit)
