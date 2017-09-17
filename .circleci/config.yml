@@ -21,8 +21,11 @@ jobs:
           raco setup
       - run: raco pkg config --set catalogs "https://download.racket-lang.org/releases/$RACKET_VERSION/catalog/" "https://pkg-build.racket-lang.org/server/built/catalog/" "https://pkgs.racket-lang.org" "https://planet-compats.racket-lang.org"
       - run: raco exe semver-from-git.rkt
-      - run: raco distribute semver-from-git semver-from-git
-      - run: tar jcvf semver-from-git.tar.bz2 semver-from-git
+      - run: |
+      	  raco distribute rico semver-from-git
+      	  rm -f semver-from-git
+	  mv rico semver-from-git
+      	  tar jcvf semver-from-git.tar.bz2 semver-from-git
       - run: |
           wget https://github.com/aktau/github-release/releases/download/v0.7.2/linux-amd64-github-release.tar.bz2
           tar jxvf linux-amd64-github-release.tar.bz2
