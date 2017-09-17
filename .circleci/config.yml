@@ -34,7 +34,7 @@ jobs:
           rm -f linux-amd64-github-release.tar.bz2
       - run: ./semver-from-git/bin/semver-from-git $VERSION_FILE
       - run: export SEMVER=$(cat $VERSION_FILE); github-release release --user omnypay --repo rico --tag $SEMVER  --target $CIRCLE_SHA1
-      - run: export SEMVER=$(cat $VERSION_FILE); github-release upload --user omnypay --repo rico --tag $SEMVER  --name semver-from-git --file semver-from-git
+      - run: export SEMVER=$(cat $VERSION_FILE); github-release upload --user omnypay --repo rico --tag $SEMVER  --name semver-from-git.tar.bz2 --file semver-from-git.tar.bz2
 workflows:
   version: 2
   build_test_release:
