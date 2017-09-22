@@ -2,16 +2,22 @@
 
 (require racket/system)
 
+(define log-topic 'semver)
+
 (define semver-logger
-  (make-logger 'semver
+  (make-logger log-topic
 	       (current-logger)
 	       'debug
-	       'semver))
+	       log-topic))
 
 (define semver-log-receiver
   (make-log-receiver semver-logger
 		     'debug
-		     'semver))
+		     log-topic))
+
+(define (flush-receiver receiver)
+  (let [(v (sync receiver))]
+    (printf "[~a] ~a\n" (vector-ref v 0) (vector-ref v 1))))
 
 (define (debug tag v msg)
   (when (verbose?)
@@ -19,8 +25,7 @@
 		 'debug
 		 'semver
 		 (~a tag "=>" v " --- " msg))
-    (let [(v (sync semver-log-receiver))]
-      (printf "[~a] ~a\n" (vector-ref v 0) (vector-ref v 1)))))
+    (flush-receiver semver-log-receiver)))
 
 (define (assoc-cdr key alist)
   (let [(v (assoc key alist))]
