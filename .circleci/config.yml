@@ -12,6 +12,7 @@ jobs:
       - DEBIAN_FRONTEND: noninteractive
     steps:
       - checkout
+      - git checkout master
       - run: |
           apt-get update
           apt-get install -y wget sqlite3 ca-certificates openssl procps bzip2 git
