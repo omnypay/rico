@@ -2,6 +2,9 @@
 
 (require racket/system)
 
+(define (debug tag v msg)
+  (displayln (~a tag "=>" v " --- " msg)))
+
 (define (assoc-cdr key alist)
   (let [(v (assoc key alist))]
     (when v
@@ -138,8 +141,10 @@
    (process-output
     (git-cmd "rev-parse" "--abbrev-ref" "HEAD"))))
 
-(define (brach-semver-string final-semver-value)
+(define (branch-semver-string final-semver-value)
   (let* ((branch (current-branch)))
+    (when (verbose?)
+      (debug "branch" branch "from running git rev-parse --abbrev-ref HEAD"))
     (if (not (string=? "master" branch))
 	(string-append branch "-" final-semver-value)
 	final-semver-value)))
@@ -148,12 +153,20 @@
   (let* ((initial-tag (initial-new-tag (latest-semver-tag)))
 	 (final-semver-value (final-semver-value initial-tag (last-release)))
 	 (final-semver-string (semver-as-string final-semver-value))
-	 (final-result (brach-semver-string final-semver-string)))
+	 (final-result (branch-semver-string final-semver-string)))
+    (when (verbose?)
+      (debug "initial-tag" initial-tag "Result from initial-new-tag fn")
+      (debug "final-semver-string"
+	     final-semver-string
+	     "Result from (semver-as-string final-semver-value)")
+      (debug "final-result"
+	     final-result
+	     "Result from (branch-semver-string final-semver-string)"))
     final-result))
 
 #|
 (call-with-current-directory
- "/home/kasim/work/omnyway/pantheon"
+ "/home/kasim/work/omnyway/pantheon-modules-common"
  (lambda ()
    ;;(initial-new-tag (latest-semver-tag))
    ;;(last-release)
@@ -165,10 +178,12 @@
 
 (define sync? (make-parameter #f))
 (define stdout? (make-parameter #f))
+(define verbose? (make-parameter #f))
 
 (define main
   (command-line
    #:once-each
+   [("-v") "Run in verbose mode for debugging " (verbose? #t)]
    [("-s") "Sync local/remove tags" (sync? #t)]
    [("-n") "Only write to stdout. No output file" (stdout? #t)]
    #:args args
