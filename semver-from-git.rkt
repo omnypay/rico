@@ -166,7 +166,7 @@
 
 #|
 (call-with-current-directory
- "/home/kasim/work/omnyway/pantheon-modules-common"
+ "/path/to/git/repo"
  (lambda ()
    ;;(initial-new-tag (latest-semver-tag))
    ;;(last-release)
