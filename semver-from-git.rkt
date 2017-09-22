@@ -2,8 +2,30 @@
 
 (require racket/system)
 
+(define log-topic 'semver)
+
+(define semver-logger
+  (make-logger log-topic
+	       (current-logger)
+	       'debug
+	       log-topic))
+
+(define semver-log-receiver
+  (make-log-receiver semver-logger
+		     'debug
+		     log-topic))
+
+(define (flush-receiver receiver)
+  (let [(v (sync receiver))]
+    (printf "[~a] ~a\n" (vector-ref v 0) (vector-ref v 1))))
+
 (define (debug tag v msg)
-  (displayln (~a tag "=>" v " --- " msg)))
+  (when (verbose?)
+    (log-message semver-logger
+		 'debug
+		 'semver
+		 (~a tag "=>" v " --- " msg))
+    (flush-receiver semver-log-receiver)))
 
 (define (assoc-cdr key alist)
   (let [(v (assoc key alist))]
@@ -146,8 +168,7 @@
 
 (define (branch-semver-string final-semver-value)
   (let* ((branch (current-branch)))
-    (when (verbose?)
-      (debug "branch" branch "from running git rev-parse --abbrev-ref HEAD"))
+    (debug "branch" branch "from running git rev-parse --abbrev-ref HEAD")
     (if (not (string=? "master" branch))
 	(string-append branch "-" final-semver-value)
 	final-semver-value)))
@@ -157,14 +178,13 @@
 	 (final-semver-value (final-semver-value initial-tag (last-release)))
 	 (final-semver-string (semver-as-string final-semver-value))
 	 (final-result (branch-semver-string final-semver-string)))
-    (when (verbose?)
-      (debug "initial-tag" initial-tag "Result from initial-new-tag fn")
-      (debug "final-semver-string"
-	     final-semver-string
-	     "Result from (semver-as-string final-semver-value)")
-      (debug "final-result"
-	     final-result
-	     "Result from (branch-semver-string final-semver-string)"))
+    (debug "initial-tag" initial-tag "Result from initial-new-tag fn")
+    (debug "final-semver-string"
+	   final-semver-string
+	   "Result from (semver-as-string final-semver-value)")
+    (debug "final-result"
+	   final-result
+	   "Result from (branch-semver-string final-semver-string)")
     final-result))
 
 #|
